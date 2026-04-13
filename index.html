@@ -1,146 +1,154 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Shiba Runner</title>
+<title>Shiba Uni Shooter</title>
 <style>
 body{
 margin:0;
 overflow:hidden;
-background:#222;
+background:#111;
 font-family:Arial;
+text-align:center;
 }
 canvas{
 display:block;
 margin:auto;
-background:#444;
+background:#222;
 }
-#restartBtn{
-display:none;
-position:absolute;
-top:50%;
-left:50%;
-transform:translate(-50%,-50%);
-padding:15px 30px;
-font-size:20px;
+.controls{
+position:fixed;
+bottom:15px;
+width:100%;
+display:flex;
+justify-content:space-around;
+}
+button{
+padding:18px 25px;
+font-size:22px;
+border:none;
+border-radius:12px;
+background:#444;
+color:white;
 }
 </style>
 </head>
 <body>
 
 <canvas id="game" width="400" height="600"></canvas>
-<button id="restartBtn">Restart</button>
+
+<div class="controls">
+<button id="leftBtn">⬅️</button>
+<button id="shootBtn">🍖</button>
+<button id="rightBtn">➡️</button>
+</div>
 
 <script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-const restartBtn = document.getElementById("restartBtn");
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
 
-let player = {
-x:180,
+let player={
+x:170,
 y:500,
-w:50,
-h:50
+w:70,
+h:70
 };
 
-let obstacles=[];
+let bullets=[];
+let enemies=[];
 let coins=[];
 let score=0;
-let highScore=localStorage.getItem("highScore") || 0;
-let speed=4;
 let lives=3;
-let gameOver=false;
-let roadOffset=0;
 
-document.addEventListener("keydown",(e)=>{
-if(e.key==="ArrowLeft") player.x-=40;
-if(e.key==="ArrowRight") player.x+=40;
-});
+const shibaImg=new Image();
+shibaImg.src="IMG_20260413_160533_222.jpg"; // your image
 
-canvas.addEventListener("touchstart",(e)=>{
-let touchX=e.touches[0].clientX;
-if(touchX<window.innerWidth/2){
-player.x-=40;
-}else{
-player.x+=40;
-}
-});
+// controls
+document.getElementById("leftBtn").onclick=()=>player.x-=40;
+document.getElementById("rightBtn").onclick=()=>player.x+=40;
 
+document.getElementById("shootBtn").onclick=()=>{
+bullets.push({x:player.x+25,y:player.y,w:10,h:20});
+};
+
+// spawn enemies
 setInterval(()=>{
-if(!gameOver){
-obstacles.push({
-x:Math.random()*340,
-y:-50,
-w:50,
-h:50
+enemies.push({
+x:Math.random()*350,
+y:-40,
+w:40,
+h:40
 });
-}
-},1200);
+},1000);
 
+// spawn coins
 setInterval(()=>{
-if(!gameOver){
 coins.push({
-x:Math.random()*360,
+x:Math.random()*350,
 y:-30,
-w:30,
-h:30
+w:20,
+h:20
 });
-}
-},2000);
-
-function drawRoad(){
-roadOffset+=speed;
-ctx.fillStyle="#333";
-ctx.fillRect(0,0,400,600);
-
-ctx.strokeStyle="white";
-ctx.lineWidth=5;
-
-for(let i=-20;i<600;i+=40){
-ctx.beginPath();
-ctx.moveTo(200,i+roadOffset%40);
-ctx.lineTo(200,i+20+roadOffset%40);
-ctx.stroke();
-}
-}
+},1500);
 
 function loop(){
+
 ctx.clearRect(0,0,400,600);
+ctx.fillStyle="#222";
+ctx.fillRect(0,0,400,600);
 
-drawRoad();
+// PLAYER
+ctx.drawImage(shibaImg,player.x,player.y,70,70);
 
-ctx.font="40px Arial";
-ctx.fillText("🐕",player.x,player.y+40);
+// BULLETS (dog food)
+bullets.forEach((b,i)=>{
+b.y-=8;
+ctx.fillText("🍖",b.x,b.y);
 
-obstacles.forEach((o,i)=>{
-o.y+=speed;
-ctx.font="40px Arial";
-ctx.fillText("🚗",o.x,o.y+40);
+if(b.y<0) bullets.splice(i,1);
+});
 
+// ENEMIES
+enemies.forEach((e,ei)=>{
+e.y+=4;
+ctx.fillText("🐈",e.x,e.y);
+
+// collision bullet
+bullets.forEach((b,bi)=>{
 if(
-player.x<o.x+o.w &&
-player.x+player.w>o.x &&
-player.y<o.y+o.h &&
-player.y+player.h>o.y
+b.x<e.x+e.w &&
+b.x+b.w>e.x &&
+b.y<e.y+e.h &&
+b.y+b.h>e.y
 ){
-obstacles.splice(i,1);
-lives--;
+enemies.splice(ei,1);
+bullets.splice(bi,1);
+score+=10;
 
-if(lives<=0){
-endGame();
-}
-}
-
-if(o.y>600){
-obstacles.splice(i,1);
-score++;
-speed+=0.1;
+// explosion effect
+ctx.fillText("💥",e.x,e.y);
 }
 });
 
-coins.forEach((c,i)=>{
-c.y+=speed;
-ctx.font="30px Arial";
-ctx.fillText("🪙",c.x,c.y+30);
+// collision player
+if(
+player.x<e.x+e.w &&
+player.x+player.w>e.x &&
+player.y<e.y+e.h &&
+player.y+player.h>e.y
+){
+lives--;
+enemies.splice(ei,1);
+if(lives<=0){
+alert("Game Over! Score: "+score);
+location.reload();
+}
+}
+});
+
+// COINS
+coins.forEach((c,ci)=>{
+c.y+=4;
+ctx.fillText("🪙",c.x,c.y);
 
 if(
 player.x<c.x+c.w &&
@@ -148,39 +156,21 @@ player.x+player.w>c.x &&
 player.y<c.y+c.h &&
 player.y+player.h>c.y
 ){
-coins.splice(i,1);
 score+=5;
+coins.splice(ci,1);
 }
 
-if(c.y>600){
-coins.splice(i,1);
-}
+if(c.y>600) coins.splice(ci,1);
 });
 
+// UI
 ctx.fillStyle="white";
-ctx.font="20px Arial";
-ctx.fillText("Score: "+score,10,30);
-ctx.fillText("Lives: "+lives,10,60);
-ctx.fillText("High: "+highScore,10,90);
+ctx.font="18px Arial";
+ctx.fillText("Score: "+score,10,20);
+ctx.fillText("Lives: "+lives,10,45);
 
-if(!gameOver){
 requestAnimationFrame(loop);
 }
-}
-
-function endGame(){
-gameOver=true;
-
-if(score>highScore){
-localStorage.setItem("highScore",score);
-}
-
-restartBtn.style.display="block";
-}
-
-restartBtn.onclick=()=>{
-location.reload();
-};
 
 loop();
 </script>
