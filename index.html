@@ -1,173 +1,237 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Shiba Uni Shooter</title>
+<title>Kimchi Run</title>
 <style>
 body{
 margin:0;
 overflow:hidden;
-background:#111;
+background:black;
 font-family:Arial;
-text-align:center;
 }
 canvas{
 display:block;
 margin:auto;
-background:#222;
+background:#111;
 }
 .controls{
 position:fixed;
-bottom:15px;
+bottom:20px;
 width:100%;
 display:flex;
 justify-content:space-around;
+flex-wrap:wrap;
 }
 button{
-padding:18px 25px;
-font-size:22px;
+padding:15px 20px;
+font-size:20px;
 border:none;
 border-radius:12px;
-background:#444;
+background:#333;
 color:white;
+margin:5px;
 }
 </style>
 </head>
 <body>
 
-<canvas id="game" width="400" height="600"></canvas>
+<canvas id="game" width="400" height="650"></canvas>
 
 <div class="controls">
-<button id="leftBtn">⬅️</button>
-<button id="shootBtn">🍖</button>
-<button id="rightBtn">➡️</button>
+<button onclick="moveLeft()">⬅️</button>
+<button onclick="jump()">⬆️</button>
+<button onclick="slide()">⬇️</button>
+<button onclick="moveRight()">➡️</button>
 </div>
 
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 
+const dogImg=new Image();
+dogImg.src="IMG_20260413_160533_222.jpg";
+
+let lanes=[70,165,260];
+let currentLane=1;
+
 let player={
-x:170,
+x:lanes[currentLane],
 y:500,
 w:70,
-h:70
+h:70,
+vy:0,
+jumping:false,
+sliding:false
 };
 
-let bullets=[];
-let enemies=[];
+let obstacles=[];
 let coins=[];
 let score=0;
-let lives=3;
+let speed=6;
+let bgOffset=0;
 
-const shibaImg=new Image();
-shibaImg.src="IMG_20260413_160533_222.jpg"; // your image
-
-// controls
-document.getElementById("leftBtn").onclick=()=>player.x-=40;
-document.getElementById("rightBtn").onclick=()=>player.x+=40;
-
-document.getElementById("shootBtn").onclick=()=>{
-bullets.push({x:player.x+25,y:player.y,w:10,h:20});
-};
-
-// spawn enemies
 setInterval(()=>{
-enemies.push({
-x:Math.random()*350,
-y:-40,
-w:40,
-h:40
+obstacles.push({
+lane:Math.floor(Math.random()*3),
+y:-50,
+type:Math.random()>0.5?"high":"low"
 });
 },1000);
 
-// spawn coins
 setInterval(()=>{
 coins.push({
-x:Math.random()*350,
-y:-30,
-w:20,
-h:20
+lane:Math.floor(Math.random()*3),
+y:-20
 });
-},1500);
+},900);
+
+function moveLeft(){
+if(currentLane>0) currentLane--;
+}
+
+function moveRight(){
+if(currentLane<2) currentLane++;
+}
+
+function jump(){
+if(!player.jumping){
+player.vy=-16;
+player.jumping=true;
+}
+}
+
+function slide(){
+player.sliding=true;
+player.h=40;
+
+setTimeout(()=>{
+player.sliding=false;
+player.h=70;
+},500);
+}
+
+function drawBackground(){
+bgOffset+=speed;
+
+ctx.fillStyle="#000";
+ctx.fillRect(0,0,400,650);
+
+// neon buildings
+for(let i=0;i<8;i++){
+ctx.fillStyle="#0ff";
+ctx.fillRect(i*60,(bgOffset+i*40)%650,30,100);
+}
+
+for(let i=0;i<8;i++){
+ctx.fillStyle="#f0f";
+ctx.fillRect(i*55,((bgOffset+200)+i*50)%650,20,80);
+}
+}
+
+function drawRoad(){
+ctx.fillStyle="#222";
+
+ctx.beginPath();
+ctx.moveTo(100,650);
+ctx.lineTo(300,650);
+ctx.lineTo(250,0);
+ctx.lineTo(150,0);
+ctx.closePath();
+ctx.fill();
+
+ctx.strokeStyle="#00ff99";
+ctx.lineWidth=2;
+
+ctx.beginPath();
+ctx.moveTo(166,650);
+ctx.lineTo(183,0);
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(233,650);
+ctx.lineTo(216,0);
+ctx.stroke();
+}
 
 function loop(){
 
-ctx.clearRect(0,0,400,600);
-ctx.fillStyle="#222";
-ctx.fillRect(0,0,400,600);
+ctx.clearRect(0,0,400,650);
 
-// PLAYER
-ctx.drawImage(shibaImg,player.x,player.y,70,70);
+drawBackground();
+drawRoad();
 
-// BULLETS (dog food)
-bullets.forEach((b,i)=>{
-b.y-=8;
-ctx.fillText("🍖",b.x,b.y);
+// Smooth movement
+player.x+=(lanes[currentLane]-player.x)*0.2;
 
-if(b.y<0) bullets.splice(i,1);
-});
+// Jump physics
+player.y+=player.vy;
+player.vy+=1;
 
-// ENEMIES
-enemies.forEach((e,ei)=>{
-e.y+=4;
-ctx.fillText("🐈",e.x,e.y);
-
-// collision bullet
-bullets.forEach((b,bi)=>{
-if(
-b.x<e.x+e.w &&
-b.x+b.w>e.x &&
-b.y<e.y+e.h &&
-b.y+b.h>e.y
-){
-enemies.splice(ei,1);
-bullets.splice(bi,1);
-score+=10;
-
-// explosion effect
-ctx.fillText("💥",e.x,e.y);
+if(player.y>=500){
+player.y=500;
+player.vy=0;
+player.jumping=false;
 }
-});
 
-// collision player
+// Bounce effect
+let bounce=Math.sin(Date.now()/100)*3;
+
+ctx.drawImage(dogImg,player.x,player.y+bounce,70,player.h);
+
+// Obstacles
+obstacles.forEach((o,i)=>{
+o.y+=speed;
+
+let ox=lanes[o.lane];
+
+ctx.fillStyle="red";
+
+if(o.type==="high"){
+ctx.fillRect(ox,o.y,50,60);
+}else{
+ctx.fillRect(ox,o.y+30,50,20);
+}
+
 if(
-player.x<e.x+e.w &&
-player.x+player.w>e.x &&
-player.y<e.y+e.h &&
-player.y+player.h>e.y
+player.x<ox+50 &&
+player.x+70>ox &&
+player.y<o.y+60 &&
+player.y+player.h>o.y
 ){
-lives--;
-enemies.splice(ei,1);
-if(lives<=0){
 alert("Game Over! Score: "+score);
 location.reload();
 }
-}
 });
 
-// COINS
-coins.forEach((c,ci)=>{
-c.y+=4;
-ctx.fillText("🪙",c.x,c.y);
+// Coins
+coins.forEach((c,i)=>{
+c.y+=speed;
+
+let cx=lanes[c.lane];
+
+ctx.fillStyle="gold";
+ctx.beginPath();
+ctx.arc(cx+20,c.y+20,12,0,Math.PI*2);
+ctx.fill();
 
 if(
-player.x<c.x+c.w &&
-player.x+player.w>c.x &&
-player.y<c.y+c.h &&
+player.x<cx+25 &&
+player.x+70>cx &&
+player.y<c.y+25 &&
 player.y+player.h>c.y
 ){
-score+=5;
-coins.splice(ci,1);
+score+=10;
+coins.splice(i,1);
 }
-
-if(c.y>600) coins.splice(ci,1);
 });
 
 // UI
 ctx.fillStyle="white";
-ctx.font="18px Arial";
-ctx.fillText("Score: "+score,10,20);
-ctx.fillText("Lives: "+lives,10,45);
+ctx.font="20px Arial";
+ctx.fillText("KIMCHI RUN",10,30);
+ctx.fillText("Score: "+score,10,60);
+
+speed+=0.001;
 
 requestAnimationFrame(loop);
 }
