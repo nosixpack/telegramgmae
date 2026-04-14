@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Kimchi Run 3D</title>
+<title>Kimchi Run</title>
 <style>
 body{
 margin:0;
@@ -16,20 +16,18 @@ background:#000;
 }
 .controls{
 position:fixed;
-bottom:15px;
+bottom:10px;
 width:100%;
 display:flex;
 justify-content:space-around;
-flex-wrap:wrap;
 }
 button{
-padding:14px 18px;
+padding:15px;
 font-size:18px;
 border:none;
 border-radius:10px;
 background:#222;
 color:white;
-margin:4px;
 }
 </style>
 </head>
@@ -38,105 +36,82 @@ margin:4px;
 <canvas id="game" width="400" height="650"></canvas>
 
 <div class="controls">
-<button onclick="moveLeft()">⬅️</button>
+<button onclick="left()">⬅️</button>
 <button onclick="jump()">⬆️</button>
-<button onclick="slide()">⬇️</button>
-<button onclick="moveRight()">➡️</button>
+<button onclick="right()">➡️</button>
 <button onclick="resetGame()">🔄</button>
 </div>
 
 <script>
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-// LOAD SHIBA RUN FRAMES
-const dogFrames = [];
+// LOAD YOUR SHIBA IMAGES
+const frames = [];
 
-for(let i=1;i<=3;i++){
-let img = new Image();
-img.src = "shiba" + i + ".png";
-dogFrames.push(img);
-}
+let img1 = new Image();
+img1.src = "Shiba1.png";
 
-let lanes=[70,165,260];
-let currentLane=1;
+let img2 = new Image();
+img2.src = "shiba2.png";
 
-let player={
-x:lanes[currentLane],
-y:500,
-w:70,
-h:70,
-vy:0,
-jumping:false,
-sliding:false
+let img3 = new Image();
+img3.src = "shiba3.png";
+
+frames.push(img1);
+frames.push(img2);
+frames.push(img3);
+
+// PLAYER
+let lanes = [80,170,260];
+let lane = 1;
+
+let player = {
+x: lanes[lane],
+y: 500,
+vy: 0,
+jumping: false
 };
 
-let obstacles=[];
-let coins=[];
-let score=0;
-let speed=6;
-let bgOffset=0;
+// GAME ITEMS
+let obstacles = [];
+let score = 0;
+let speed = 6;
+let roadOffset = 0;
 
-// SPAWN
+// SPAWN OBSTACLES
 setInterval(()=>{
 obstacles.push({
-lane:Math.floor(Math.random()*3),
-y:-60,
-type:Math.random()>0.5?"high":"low"
+lane: Math.floor(Math.random()*3),
+y: -50
 });
-},900);
-
-setInterval(()=>{
-coins.push({
-lane:Math.floor(Math.random()*3),
-y:-30
-});
-},800);
+},1000);
 
 // CONTROLS
-function moveLeft(){ if(currentLane>0) currentLane--; }
-function moveRight(){ if(currentLane<2) currentLane++; }
+function left(){
+if(lane>0) lane--;
+}
+
+function right(){
+if(lane<2) lane++;
+}
 
 function jump(){
 if(!player.jumping){
-player.vy=-16;
+player.vy=-15;
 player.jumping=true;
 }
-}
-
-function slide(){
-player.sliding=true;
-player.h=40;
-setTimeout(()=>{player.sliding=false;player.h=70;},500);
 }
 
 function resetGame(){
 location.reload();
 }
 
-// BACKGROUND (3D PARALLAX)
-function drawBackground(){
-
-let g=ctx.createLinearGradient(0,0,0,650);
-g.addColorStop(0,"#050510");
-g.addColorStop(1,"#000");
-ctx.fillStyle=g;
-ctx.fillRect(0,0,400,650);
-
-// neon buildings
-for(let i=0;i<12;i++){
-let depth=(bgOffset*(i%3+1))%650;
-let x=i*35;
-
-ctx.fillStyle=i%2?"#0ff":"#f0f";
-ctx.fillRect(x,650-depth,25,100);
-}
-}
-
-// ROAD (3D PERSPECTIVE)
+// DRAW ROAD
 function drawRoad(){
 
 ctx.fillStyle="#111";
+
 ctx.beginPath();
 ctx.moveTo(60,650);
 ctx.lineTo(340,650);
@@ -148,8 +123,8 @@ ctx.fill();
 ctx.strokeStyle="#00ff99";
 ctx.lineWidth=2;
 
-for(let i=0;i<10;i++){
-let y=(i*70+bgOffset*2)%650;
+for(let i=0;i<12;i++){
+let y=(i*60+roadOffset)%650;
 
 let lx=180-(y/3);
 let rx=220+(y/3);
@@ -160,23 +135,22 @@ ctx.lineTo(rx,y);
 ctx.stroke();
 }
 
-bgOffset+=speed;
+roadOffset+=speed;
 }
 
-// LOOP
+// MAIN LOOP
 function loop(){
 
 ctx.clearRect(0,0,400,650);
 
-drawBackground();
 drawRoad();
 
-// lane smoothing
-player.x+=(lanes[currentLane]-player.x)*0.2;
+// MOVE PLAYER
+player.x += (lanes[lane]-player.x)*0.2;
 
-// jump physics
-player.y+=player.vy;
-player.vy+=1;
+// JUMP
+player.y += player.vy;
+player.vy += 1;
 
 if(player.y>=500){
 player.y=500;
@@ -184,91 +158,45 @@ player.vy=0;
 player.jumping=false;
 }
 
-// bounce
-let bounce=Math.sin(Date.now()/100)*3;
-let frame=Math.floor(Date.now()/100)%3;
+// RUNNING FRAME
+let frame = Math.floor(Date.now()/120)%3;
 
-// KIMCHI TRAIL
-ctx.font="20px Arial";
-let t=Math.sin(Date.now()/80)*5;
-
-ctx.fillText("🥬",player.x-20-t,player.y+20+bounce);
-ctx.fillText("🥬",player.x-30+t,player.y+40+bounce);
-ctx.fillText("🥬",player.x-10-t,player.y+60+bounce);
-
-// DRAW SHIBA (3 FRAME RUN)
-ctx.save();
-ctx.translate(player.x+35,player.y+35);
-ctx.rotate((lanes[currentLane]-player.x)/100);
-
+// DRAW DOG
 ctx.drawImage(
-dogFrames[frame],
--35,
--35+bounce,
-70,
-player.h
+frames[frame],
+player.x,
+player.y,
+60,
+60
 );
 
-ctx.restore();
-
-// OBSTACLES (3D SCALE)
+// DRAW OBSTACLES
 obstacles.forEach((o,i)=>{
-o.y+=speed;
 
-let ox=lanes[o.lane];
-let scale=1+o.y/650;
-let size=30*scale;
+o.y += speed;
+
+let ox = lanes[o.lane];
 
 ctx.fillStyle="red";
+ctx.fillRect(ox,o.y,40,40);
 
-if(o.type==="high"){
-ctx.fillRect(ox,o.y,size,60*scale);
-}else{
-ctx.fillRect(ox,o.y+30,50*scale,20*scale);
-}
-
-// collision
+// COLLISION
 if(
-player.x<ox+50 &&
-player.x+70>ox &&
-player.y<o.y+60 &&
-player.y+player.h>o.y
+player.x<ox+40 &&
+player.x+60>ox &&
+player.y<o.y+40 &&
+player.y+60>o.y
 ){
 alert("Game Over! Score: "+score);
 location.reload();
 }
-});
 
-// COINS (3D SCALE)
-coins.forEach((c,i)=>{
-c.y+=speed;
-
-let cx=lanes[c.lane];
-let scale=1+c.y/650;
-
-ctx.fillStyle="gold";
-ctx.beginPath();
-ctx.arc(cx+20,c.y,10*scale,0,Math.PI*2);
-ctx.fill();
-
-if(
-player.x<cx+25 &&
-player.x+70>cx &&
-player.y<c.y+25 &&
-player.y+player.h>c.y
-){
-score+=10;
-coins.splice(i,1);
-}
 });
 
 // UI
 ctx.fillStyle="white";
 ctx.font="20px Arial";
-ctx.fillText("KIMCHI RUN 3D",10,30);
-ctx.fillText("Score: "+score,10,60);
-
-speed+=0.001;
+ctx.fillText("KIMCHI RUN",10,30);
 
 requestAnimationFrame(loop);
 }
